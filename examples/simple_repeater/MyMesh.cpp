@@ -646,12 +646,14 @@ void MyMesh::applyTempRadioParams(float freq, float bw, uint8_t sf, uint8_t cr, 
 }
 
 bool MyMesh::formatFileSystem() {
-#if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
+#if (defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)) && !defined(W25Q_FS)
   return InternalFS.format();
 #elif defined(RP2040_PLATFORM)
   return LittleFS.format();
 #elif defined(ESP32)
   return SPIFFS.format();
+#elif defined(W25Q_FS)
+  return ExternalFS.format();
 #else
 #error "need to implement file system erase"
   return false;

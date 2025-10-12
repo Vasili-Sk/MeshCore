@@ -2,11 +2,14 @@
 
 #include <Arduino.h>
 #include <helpers/stm32/STM32Board.h>
+#include <w25q_mem.h>
 
 // Solar panel voltage, MCU current, Battery current, Solar current, temp sensor, v reference
 uint16_t adc_values[6] = { 0 }; // IN5, IN10, IN11, IN12, TS, VREFINT
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
+QSPI_HandleTypeDef hqspi = {0};
+
 float vSolar = 0;
 float iSolar = 0;
 float iMCU = 0;
@@ -17,13 +20,22 @@ float temperature = 0;
 void SetupSTM_ADC();
 void DMA_Init();
 void setupClock26MHz();
+void STM_QSPI_Init();
+uint8_t buf[1024];
 
 void SolarNodeL431Board::begin() {
   setupClock26MHz();
+  Serial.end();
+  Serial.begin(115200);
+
   Serial.print("MeshCore SolarNodeL431 starting..\n");
   STM32Board::begin();
-  SystemCoreClockUpdate();
-  Serial.printf("Core clock: %u\n", SystemCoreClock);
+  STM_QSPI_Init();
+  W25Q_Init();
+  //W25Q_EraseChip();
+  int state = W25Q_ReadRaw(buf,1024, 0);
+
+  Serial.printf("Core clock: %u\n", SystemCoreClock, state);
 
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, 1);
@@ -219,6 +231,40 @@ void setupClock26MHz() {
   __HAL_RCC_MSI_DISABLE();
   __HAL_RCC_HSE_CONFIG(RCC_HSE_OFF);
   SystemCoreClockUpdate();
+}
+
+
+void STM_QSPI_Init(void) {
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    // Enable GPIO clocks
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_QSPI_CLK_ENABLE();
+
+    // QSPI CLK (PB10), NCS (PB11), IO0 (PB1), IO1 (PB0)
+    GPIO_InitStruct.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_10 | GPIO_PIN_11;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF10_QUADSPI;  // AF10 for CLK/NCS
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    // Configure QSPI handle
+    hqspi.Instance = QUADSPI;
+    hqspi.Init.ClockPrescaler = 1;  // QSPI clock = SYSCLK / (1+1) = 40MHz (adjust for your flash)
+    hqspi.Init.FifoThreshold = 1;   // FIFO threshold for interrupts/DMA
+    hqspi.Init.SampleShifting = QSPI_SAMPLE_SHIFTING_NONE;  // Sample shift for stability
+    hqspi.Init.FlashSize = 19;      // 1MB = 2^20 bytes, so FlashSize = log2(1MB) - 1 = 19
+    hqspi.Init.ChipSelectHighTime = QSPI_CS_HIGH_TIME_1_CYCLE;  // CS high time
+    hqspi.Init.ClockMode = QSPI_CLOCK_MODE_0;  // Clock polarity low, phase first edge
+    hqspi.Init.FlashID = QSPI_FLASH_ID_1;      // Single flash chip
+    hqspi.Init.DualFlash = QSPI_DUALFLASH_DISABLE;  // Single flash mode
+
+    // Initialize QSPI
+    if (HAL_QSPI_Init(&hqspi) != HAL_OK) {
+        // Initialization error
+        while (1) { /* Handle error */ }
+    }
 }
 
 

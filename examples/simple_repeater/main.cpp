@@ -41,7 +41,7 @@ void setup() {
   fast_rng.begin(radio_get_rng_seed());
 
   FILESYSTEM* fs;
-#if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
+#if (defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)) && !defined(W25Q_FS)
   InternalFS.begin();
   fs = &InternalFS;
   IdentityStore store(InternalFS, "");
@@ -54,6 +54,10 @@ void setup() {
   fs = &LittleFS;
   IdentityStore store(LittleFS, "/identity");
   store.begin();
+#elif defined(W25Q_FS)
+  ExternalFS.begin();
+  fs = &ExternalFS;
+  IdentityStore store(ExternalFS, "");
 #else
   #error "need to define filesystem"
 #endif

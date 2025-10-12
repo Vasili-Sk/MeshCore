@@ -26,18 +26,26 @@
 
 #define PIN_USER_BTN PH_3
 #define FLASH_END_ADDR FLASH_END
-/*
-  -D P_LORA_DIO_1=3
-  -D P_LORA_NSS=8
-  -D P_LORA_RESET=5
-  -D P_LORA_DIO_0=RADIOLIB_NC
-  -D P_LORA_DIO_2=RADIOLIB_NC
-  -D P_LORA_BUSY=4
-  -D P_LORA_SCLK=10
-  -D P_LORA_MISO=6
-  -D P_LORA_MOSI=7
-  -D SX126X_DIO2_AS_RF_SWITCH=true
-  -D SX126X_DIO3_TCXO_VOLTAGE=1.8
-  -D SX126X_CURRENT_LIMIT=140
-  -D SX126X_RX_BOOSTED_GAIN=1*/
 #undef RNG
+
+// External memory IC SETTINGS
+#define HAL_QSPI_MODULE_ENABLED
+#define W25Q_FS
+#define LFS_FLASH_TOTAL_SIZE ((1024 - 256) * 1024)
+#define W25Q_DATA_LINES      2
+/// Mem size in M-bit
+#define W25Q_FLASH_SIZE      8U // 8 M-bit
+/// Mem big block size in KB
+#define W25Q_BLOCK_SIZE      64U // 64 KB: 256 pages
+/// Mem small block size in KB
+#define W25Q_SBLOCK_SIZE     32U // 32 KB: 128 pages
+/// Mem sector size in KB
+#define W25Q_SECTOR_SIZE     4U // 4 KB : 16 pages
+/// Mem page size in bytes
+#define W25Q_PAGE_SIZE       256U // 256 byte : 1 page
+/// Blocks count
+#define BLOCK_COUNT (W25Q_FLASH_SIZE * 2) 
+/// Sector count
+#define SECTOR_COUNT (BLOCK_COUNT * 16) 
+/// Pages count
+#define PAGE_COUNT (SECTOR_COUNT * 16)
