@@ -108,7 +108,8 @@ DispatcherAction Mesh::onRecvPacket(Packet* pkt) {
     case PAYLOAD_TYPE_PATH:
     case PAYLOAD_TYPE_REQ:
     case PAYLOAD_TYPE_RESPONSE:
-    case PAYLOAD_TYPE_TXT_MSG: {
+    case PAYLOAD_TYPE_TXT_MSG: 
+    case PAYLOAD_TYPE_DATA: {
       int i = 0;
       uint8_t dest_hash = pkt->payload[i++];
       uint8_t src_hash = pkt->payload[i++];

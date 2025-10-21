@@ -273,23 +273,23 @@ bool SolarNodeL431Sensors::begin() {
 }
 
 bool SolarNodeL431Sensors::querySensors(uint8_t requester_permissions, CayenneLPP &telemetry) {
-  next_available_channel = TELEM_CHANNEL_SELF + 1;
   if (requester_permissions & TELEM_PERM_BASE) {
     telemetry.addTemperature(TELEM_CHANNEL_SELF, temperature);
-    telemetry.addCurrent(TELEM_CHANNEL_SELF, iMCU);
-    telemetry.addPower(TELEM_CHANNEL_SELF, iMCU * vBattery );
+    //telemetry.addCurrent(TELEM_CHANNEL_SELF, iMCU);
+    //telemetry.addPower(TELEM_CHANNEL_SELF, iMCU * vBattery);
   }
+  next_available_channel = TELEM_CHANNEL_SELF + 1;
 
   if (requester_permissions & TELEM_PERM_ENVIRONMENT) {
     telemetry.addVoltage(next_available_channel, vSolar);
     telemetry.addCurrent(next_available_channel, iSolar);
-    telemetry.addPower(next_available_channel, vSolar * iSolar);
+    telemetry.addPower(next_available_channel, vSolar * iSolar * 1000);
     next_available_channel++;
 
     telemetry.addVoltage(next_available_channel, vBattery );
-    telemetry.addCurrent(next_available_channel, iBattery);
-    telemetry.addPower(next_available_channel, iBattery * vBattery);
-    telemetry.addFrequency(next_available_channel, SystemCoreClock);
+    //telemetry.addCurrent(next_available_channel, iBattery);
+    //telemetry.addPower(next_available_channel, iBattery * vBattery);
+    //telemetry.addFrequency(next_available_channel, SystemCoreClock);
     next_available_channel++;
   }
   

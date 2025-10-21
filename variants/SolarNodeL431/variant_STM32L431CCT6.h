@@ -57,16 +57,27 @@
 
 // UART Definitions
 #ifndef SERIAL_UART_INSTANCE
-  #define SERIAL_UART_INSTANCE  1
+  #define SERIAL_UART_INSTANCE  2
 #endif
 
 // Default pin used for generic 'Serial' instance
 // USART1
+#if SERIAL_UART_INSTANCE==1
 #ifndef PIN_SERIAL_RX
   #define PIN_SERIAL_RX          PA_10
 #endif
 #ifndef PIN_SERIAL_TX
   #define PIN_SERIAL_TX          PA_9
+#endif
+#endif
+
+#if SERIAL_UART_INSTANCE==2
+#ifndef PIN_SERIAL_RX
+  #define PIN_SERIAL_RX          PA_3
+#endif
+#ifndef PIN_SERIAL_TX
+  #define PIN_SERIAL_TX          PA_2
+#endif
 #endif
 
 // Alias

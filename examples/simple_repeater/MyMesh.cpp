@@ -334,13 +334,14 @@ void MyMesh::logRx(mesh::Packet *pkt, int len, float score) {
   if (_logging) {
     File f = openAppend(PACKET_LOG_FILE);
     if (f) {
+      uint8_t type = pkt->getPayloadType();
       f.print(getLogDateTime());
       f.printf(": RX, len=%d (type=%d, route=%s, payload_len=%d) SNR=%d RSSI=%d score=%d", len,
-               pkt->getPayloadType(), pkt->isRouteDirect() ? "D" : "F", pkt->payload_len,
+               type, pkt->isRouteDirect() ? "D" : "F", pkt->payload_len,
                (int)_radio->getLastSNR(), (int)_radio->getLastRSSI(), (int)(score * 1000));
 
-      if (pkt->getPayloadType() == PAYLOAD_TYPE_PATH || pkt->getPayloadType() == PAYLOAD_TYPE_REQ ||
-          pkt->getPayloadType() == PAYLOAD_TYPE_RESPONSE || pkt->getPayloadType() == PAYLOAD_TYPE_TXT_MSG) {
+      if (type == PAYLOAD_TYPE_PATH || type == PAYLOAD_TYPE_REQ || type == PAYLOAD_TYPE_RESPONSE ||
+          type == PAYLOAD_TYPE_TXT_MSG || type == PAYLOAD_TYPE_DATA) {
         f.printf(" [%02X -> %02X]\n", (uint32_t)pkt->payload[1], (uint32_t)pkt->payload[0]);
       } else {
         f.printf("\n");
@@ -357,12 +358,13 @@ void MyMesh::logTx(mesh::Packet *pkt, int len) {
   if (_logging) {
     File f = openAppend(PACKET_LOG_FILE);
     if (f) {
+      uint8_t type = pkt->getPayloadType();
       f.print(getLogDateTime());
-      f.printf(": TX, len=%d (type=%d, route=%s, payload_len=%d)", len, pkt->getPayloadType(),
+      f.printf(": TX, len=%d (type=%d, route=%s, payload_len=%d)", len, type,
                pkt->isRouteDirect() ? "D" : "F", pkt->payload_len);
 
-      if (pkt->getPayloadType() == PAYLOAD_TYPE_PATH || pkt->getPayloadType() == PAYLOAD_TYPE_REQ ||
-          pkt->getPayloadType() == PAYLOAD_TYPE_RESPONSE || pkt->getPayloadType() == PAYLOAD_TYPE_TXT_MSG) {
+      if (type == PAYLOAD_TYPE_PATH || type == PAYLOAD_TYPE_REQ || type == PAYLOAD_TYPE_RESPONSE ||
+          type == PAYLOAD_TYPE_TXT_MSG || type == PAYLOAD_TYPE_DATA) {
         f.printf(" [%02X -> %02X]\n", (uint32_t)pkt->payload[1], (uint32_t)pkt->payload[0]);
       } else {
         f.printf("\n");
@@ -555,6 +557,34 @@ void MyMesh::onPeerDataRecv(mesh::Packet *packet, uint8_t type, int sender_idx, 
     } else {
       MESH_DEBUG_PRINTLN("onPeerDataRecv: possible replay attack detected");
     }
+  }else if (type == PAYLOAD_TYPE_DATA && len > 5 && client->isAdmin()){
+    /*FileDataPacket_t* flags = (FileDataPacket_t*) data;
+    if (flags->Timestep >= client->last_timestamp) {
+      bool is_retry = (flags->Timestep == client->last_timestamp);
+      client->last_timestamp = flags->Timestep;
+      client->last_activity = getRTCClock()->getCurrentTime();
+
+      uint32_t offset = flags->Offset;
+      if (flags->Flag_24bOffset == 1) {
+        offset |= ((uint32_t)flags->Offset_3b) << 16;
+      }
+      if (!is_retry && flags->Flag_IsOTA == 1) {
+        handleData(sender_timestamp, flags, &flags->DataPtr);
+        uint32_t ack_hash; // calc truncated hash of the message timestamp + text + sender pub_key, to prove
+                           // to sender that we got it
+        mesh::Utils::sha256((uint8_t *)&ack_hash, 4, data, 5 + strlen((char *)&flags->DataPtr), client->id.pub_key,
+                            PUB_KEY_SIZE);
+
+        mesh::Packet *ack = createAck(ack_hash);
+        if (ack) {
+          if (client->out_path_len < 0) {
+            sendFlood(ack, CLI_REPLY_DELAY_MILLIS);
+          } else {
+            sendDirect(ack, client->out_path, client->out_path_len, CLI_REPLY_DELAY_MILLIS);
+          }
+        }
+      }
+    }*/
   }
 }
 

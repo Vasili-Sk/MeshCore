@@ -22,6 +22,7 @@
 #include <helpers/AdvertDataHelpers.h>
 #include <helpers/TxtDataHelpers.h>
 #include <helpers/ClientACL.h>
+#include <helpers/FileDataHelpers.h>
 #include <RTClib.h>
 #include <target.h>
 
