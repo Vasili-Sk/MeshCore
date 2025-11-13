@@ -7,6 +7,7 @@
 #define ADC_ISOLAR      A7
 #define ADC_IMCU        A5
 #define ADC_IBAT        A6
+#define DAC_OUT         A4
 #define ENABLE_SENSORS  D33 //PC_14
 #define ENABLE_SHUNTS   D34 //PC_15
 

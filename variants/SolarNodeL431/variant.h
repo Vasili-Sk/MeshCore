@@ -28,8 +28,12 @@
 #define FLASH_END_ADDR FLASH_END
 #undef RNG
 
-// External memory IC SETTINGS
+// HAL settings
 #define HAL_QSPI_MODULE_ENABLED
+#define HAL_LPTIM_MODULE_ENABLED
+#define HAL_DAC_MODULE_ENABLED
+#define PWM_RESOLUTION 12
+// External memory IC SETTINGS
 #define W25Q_FS
 #define LFS_FLASH_TOTAL_SIZE ((1024 - 256) * 1024)
 #define W25Q_DATA_LINES      2
