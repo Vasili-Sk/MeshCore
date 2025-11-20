@@ -1,10 +1,10 @@
+#include "adc_hal.h"
+#include "mppt.h"
 #include "target.h"
 
 #include <Arduino.h>
 #include <helpers/stm32/STM32Board.h>
 #include <w25q_mem.h>
-#include "adc_hal.h"
-#include "mppt.h"
 
 QSPI_HandleTypeDef hqspi = { 0 };
 
@@ -23,25 +23,32 @@ void SolarNodeL431Board::begin() {
   W25Q_Init();
   // W25Q_EraseChip();
   // int state = W25Q_ReadRaw(buf,1024, 0);
-    HAL_DBGMCU_EnableDBGSleepMode();
-
+  #ifdef DEBUG
+  HAL_DBGMCU_EnableDBGSleepMode();
+  #endif
+  
   Serial.printf("Core clock: %u\n", SystemCoreClock);
 
   ADC_HAL_Init();
   MPPT_Init();
   LPTIM1_Init();
-  //keep ultra low power while battery barely charged
+  // keep ultra low power while battery barely charged
   while (vBattery10hz < 3.1f) {
-    __WFI(); 
-  } 
+    __WFI();
+  }
   /*while (1) {
-    __WFI(); 
+    __WFI();
   }*/
 }
 
-void initVariant(){
+void initVariant() {
   boardGPIOinit();
   //setupClock26MHz();
+}
+
+void loraISR()
+{
+
 }
 
 void boardGPIOinit() {
@@ -58,7 +65,7 @@ void boardGPIOinit() {
   // RCC->BDCR &= ~RCC_BDCR_LSEON; // Clear LSEON bit
   digitalWrite(ENABLE_SENSORS, 1);
   pinMode(ENABLE_SENSORS, OUTPUT);
-  digitalWrite(ENABLE_SHUNTS, 0);
+  digitalWrite(ENABLE_SHUNTS, 1);
   pinMode(ENABLE_SHUNTS, OUTPUT);
 
   pinMode(USER_BTN, INPUT);
@@ -68,10 +75,13 @@ void boardGPIOinit() {
   pinMode(ADC_IMCU, INPUT_ANALOG);
   pinMode(ADC_IBAT, INPUT_ANALOG);
   pinMode(DAC_OUT, INPUT_ANALOG);
+
+  attachInterrupt(digitalPinToInterrupt(P_LORA_DIO_1), loraISR, FALLING);
+  //attachInterrupt(digitalPinToInterrupt(P_LORA2_DIO_1), loraISR, FALLING);
 }
 
 const char *SolarNodeL431Board::getManufacturerName() const {
-  return "VasiliSk";
+  return "Mr.Fox Inc.";
 }
 
 uint16_t SolarNodeL431Board::getBattMilliVolts() {
@@ -88,7 +98,57 @@ uint32_t SolarNodeL431Board::getGpio() {
   return digitalRead(USER_BTN);
 }
 
+void SolarNodeL431Board::sleep(){
+  __WFI();
+}
 
+bool SolarNodeL431Board::startOTAUpdate(const char* id, char reply[]) {
+  // 1. Disable all interrupts
+  __disable_irq();
+
+  // 2. Disable Systick (very important!)
+  SysTick->CTRL = 0;
+  SysTick->LOAD = 0;
+  SysTick->VAL  = 0;
+
+  // 3. Reset all peripherals to initial state (optional but clean)
+  HAL_DeInit();                     // only if you use HAL
+  // or at least:
+  __HAL_RCC_APB1_FORCE_RESET();
+  __HAL_RCC_APB2_FORCE_RESET();
+  __HAL_RCC_APB1_RELEASE_RESET();
+  __HAL_RCC_APB2_RELEASE_RESET();
+
+  // 4. Disable all used peripherals & clocks here if you want ultra-clean
+
+  // 5. Remap memory to system bootloader (address depends on STM32 family)
+  uint32_t bootloader_address;
+
+  #if defined(STM32F0) || defined(STM32F1) || defined(STM32F3) || \
+      defined(STM32G0) || defined(STM32L0) || defined(STM32L1)
+    bootloader_address = 0x1FF00000;     // F0/F1/F3/G0/L0/L1
+  #elif defined(STM32F4) || defined(STM32F7)
+    bootloader_address = 0x1FF00000;     // F4/F7
+  #elif defined(STM32G4) || defined(STM32H7) || defined(STM32L4) || defined(STM32L5) || \
+        defined(STM32WB) || defined(STM32WL)
+    bootloader_address = 0x1FFF0000;     // G4/H7/L4/L5/WB/WL
+  #elif defined(STM32U5)
+    bootloader_address = 0x0BF90000;     // U5 is different!
+  #else
+    #error "Unsupported STM32 family"
+  #endif
+
+  // 6. Set stack pointer to bootloader's value
+  uint32_t stack_pointer = *((volatile uint32_t*)bootloader_address);
+  __set_MSP(stack_pointer);
+
+  // 7. Jump to bootloader reset handler
+  void (*bootloader)(void) = (void (*)(void))(*(uint32_t*)(bootloader_address + 4));
+  bootloader();
+
+  // Never reaches here
+  return true;  
+}
 
 void LPTIM1_Init(void) {
   // 2. Enable LPTIM1 clock
@@ -115,16 +175,22 @@ void LPTIM1_Init(void) {
   HAL_NVIC_EnableIRQ(LPTIM1_IRQn);
 
   // Start 10 Hz timeout
-  uint32_t arr = (HSI_VALUE / 128 / 100) - 1; 
+  uint32_t arr = (HSI_VALUE / 128 / 100) - 1;
   HAL_LPTIM_Counter_Start_IT(&hlptim1, arr);
-  //use only LPTIM_IT_ARRM interrupt
+  // use only LPTIM_IT_ARRM interrupt
   __HAL_LPTIM_DISABLE_IT(&hlptim1, LPTIM_IT_ARROK);
   __HAL_LPTIM_CLEAR_FLAG(&hlptim1, LPTIM_IT_ARROK);
 }
 
 // IRQ Handler
 extern "C" void LPTIM1_IRQHandler(void) {
-  ADC_HAL_Start();
+  static uint8_t doSensors = 0;
+  //turn off sensors when low power
+  if (vSolar10hz > 4.0f) doSensors = 1;
+  if (vSolar10hz < 3.0f) doSensors = 0;
+
+  digitalWrite(ENABLE_SHUNTS, !doSensors);
+  ADC_HAL_Start(doSensors);
 
   static int ledBlink = 0;
   ledBlink++;
@@ -135,10 +201,6 @@ extern "C" void LPTIM1_IRQHandler(void) {
   }
   __HAL_LPTIM_CLEAR_FLAG(&hlptim1, LPTIM_FLAG_ARRM);
 }
-
-
-
-
 
 // Function to safely configure 26 MHz SYSCLK with Voltage Range 2
 void setupClock26MHz() {

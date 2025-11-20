@@ -1,3 +1,6 @@
+
+#include <stdint.h>
+
 #pragma once
 extern float vSolar;
 extern float iSolar;
@@ -18,7 +21,7 @@ extern "C" {
 #endif
 
 void ADC_HAL_Init();
-void ADC_HAL_Start();
+void ADC_HAL_Start(uint8_t currenSensors);
 
 #ifdef __cplusplus
 }

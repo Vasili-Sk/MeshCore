@@ -17,10 +17,12 @@
 class SolarNodeL431Board : public STM32Board {
 public:
     void begin() override;
+    void sleep() override;
     const char* getManufacturerName() const override;
     uint16_t getBattMilliVolts() override;
     void setGpio(uint32_t values) override;
     uint32_t getGpio() override;
+    bool startOTAUpdate(const char* id, char reply[]) override;
 };
 
 class SolarNodeL431Sensors : public SensorManager {
@@ -34,5 +36,6 @@ public:
 //  const char* getSettingName(int i) const override;
 //  const char* getSettingValue(int i) const override;
 //  bool setSettingValue(const char* name, const char* value) override;
+
 };
 #endif

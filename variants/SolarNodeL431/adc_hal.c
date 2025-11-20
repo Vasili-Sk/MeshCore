@@ -13,7 +13,7 @@ float iMCU = 0;
 float vBattery = 0, vBattery10hz = 0;
 float iBattery = 0;
 float temperature = 0, temperature10hz = 0;
-
+uint8_t haveCurrentSensors = 0;
 void DMA_Init();
 
 static float LPfilter(float old, float new, float filter_const) {
@@ -114,9 +114,11 @@ void DMA1_Channel1_IRQHandler(void) {
 
     // Calculate VDD (mV)
     vBattery = (TEMPSENSOR_CAL_VREFANALOG * vrefint_cal) / adc_values[5] * 0.001f; // VREFINT
-    iBattery = (vBattery * adc_values[2] / ADC_SCALE -
-                vBattery * (20.0f / (10.0f + 20.0f))); // 10mR, 100X multiplier, 1V = 1A, with offset
-
+    if (haveCurrentSensors != 0)
+      iBattery = (vBattery * adc_values[2] / ADC_SCALE -
+                  vBattery * (20.0f / (10.0f + 20.0f))); // 10mR, 100X multiplier, 1V = 1A, with offset
+    else
+      iBattery = 0;
     // Calculate temperature (°C)
     temperature =
         ((float)((adc_values[4] * (int32_t)(vBattery * 1000) / TEMPSENSOR_CAL_VREFANALOG) - ts_cal1) *
@@ -125,21 +127,26 @@ void DMA1_Channel1_IRQHandler(void) {
         (float)TEMPSENSOR_CAL1_TEMP;
 
     vSolar = vBattery * adc_values[0] / ADC_SCALE * ((510.0f + 100.0f) / 100.0f);
-    iSolar = vBattery * adc_values[3] / ADC_SCALE; // 10mR, 100X multiplier, 1V = 1A
-
-    iMCU = vBattery * adc_values[1] / ADC_SCALE; // 10mR, 100X multiplier, 1V = 1A
-    __HAL_DMA_CLEAR_FLAG(&hdma_adc1, DMA_FLAG_TC1);
-
+    if (haveCurrentSensors != 0) {
+      iSolar = vBattery * adc_values[3] / ADC_SCALE; // 10mR, 100X multiplier, 1V = 1A
+      iMCU = vBattery * adc_values[1] / ADC_SCALE;   // 10mR, 100X multiplier, 1V = 1A
+    } else {
+      iSolar = 0;
+      iMCU = 0;
+    }
     vSolar10hz = LPfilter(vSolar10hz, vSolar, 0.05f);
     iSolar10hz = LPfilter(iSolar10hz, iSolar, 0.05f);
     vBattery10hz = LPfilter(vBattery10hz, vBattery, 0.05f);
     temperature10hz = LPfilter(temperature10hz, temperature, 0.05f);
     pSolar = vSolar * iSolar;
     pSolar10hz = LPfilter(pSolar10hz, pSolar, 0.05f);
+
+    __HAL_DMA_CLEAR_FLAG(&hdma_adc1, DMA_FLAG_TC1);
   }
   HAL_DMA_IRQHandler(&hdma_adc1);
 }
 
-void ADC_HAL_Start() {
+void ADC_HAL_Start(uint8_t currenSensors) {
   HAL_ADC_Start_IT(&hadc1);
+  haveCurrentSensors = currenSensors;
 }

@@ -23,7 +23,11 @@ static uint32_t _atoi(const char* sp) {
     CustomLFS ExtraFS(0xD4000, 0x19000, 128);
     DataStore store(InternalFS, ExtraFS, rtc_clock);
   #else
+  #if defined(W25Q_FS)
+    DataStore store(ExternalFS, rtc_clock);
+  #else
     DataStore store(InternalFS, rtc_clock);
+  #endif
   #endif
   #endif
 #elif defined(RP2040_PLATFORM)
@@ -127,8 +131,12 @@ void setup() {
 
   fast_rng.begin(radio_get_rng_seed());
 
-#if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
+  #if (defined(NRF52_PLATFORM) || defined(STM32_PLATFORM))
+  #if defined(W25Q_FS)
+  ExternalFS.begin();
+  #else
   InternalFS.begin();
+  #endif
   #if defined(QSPIFLASH)
     if (!QSPIFlash.begin()) {
       // debug output might not be available at this point, might be too early. maybe should fall back to InternalFS here?

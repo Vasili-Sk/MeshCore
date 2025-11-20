@@ -1,5 +1,4 @@
 #include "adc_hal.h"
-
 #include <Arduino.h>
 
 DAC_HandleTypeDef hdac1;
@@ -42,7 +41,7 @@ void MPPT_Tick() {
   mppt_state.Ipv_delta = iSolar10hz - mppt_state.iSolar_last;
   mppt_state.Ppw_delta = pSolar10hz - mppt_state.pSolar_last;
 
-  const uint16_t stepChange = 20; // some value to see difference at i v
+  const uint16_t stepChange = 0.1f * 4095.0f / (vBattery10hz * MPPT_DIVIDER); // some value to see difference at i v
   bool changed = false;
   int dvChange = utils_threshold(mppt_state.Vpv_delta, 0.1f);
   if (dvChange == 0) {

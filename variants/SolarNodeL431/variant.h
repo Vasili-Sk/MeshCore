@@ -29,6 +29,8 @@
 #undef RNG
 
 // HAL settings
+
+#define MPPT_DIVIDER ((390.0f + 110.0f) / 110.0f)
 #define HAL_QSPI_MODULE_ENABLED
 #define HAL_LPTIM_MODULE_ENABLED
 #define HAL_DAC_MODULE_ENABLED
