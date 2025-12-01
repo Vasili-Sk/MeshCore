@@ -70,8 +70,9 @@ void CommonCLI::loadPrefsInt(FILESYSTEM* fs, const char* filename) {
     file.read((uint8_t *)&_prefs->gps_interval, sizeof(_prefs->gps_interval));                     // 157
     file.read((uint8_t *)&_prefs->advert_loc_policy, sizeof (_prefs->advert_loc_policy));          // 161
     file.read((uint8_t *)&_prefs->discovery_mod_timestamp, sizeof(_prefs->discovery_mod_timestamp)); // 162
-    file.read((uint8_t *)&_prefs->trusted_nodes, sizeof(_prefs->trusted_nodes));                     // 166
-    // 262
+    file.read((uint8_t *)&_prefs->adc_multiplier, sizeof(_prefs->adc_multiplier));                  // 166
+    file.read((uint8_t *)&_prefs->trusted_nodes, sizeof(_prefs->trusted_nodes));                    // 170
+    // 266
 
     // sanitise bad pref values
     _prefs->rx_delay_base = constrain(_prefs->rx_delay_base, 0, 20.0f);
@@ -84,6 +85,7 @@ void CommonCLI::loadPrefsInt(FILESYSTEM* fs, const char* filename) {
     _prefs->cr = constrain(_prefs->cr, 5, 8);
     _prefs->tx_power_dbm = constrain(_prefs->tx_power_dbm, 1, 30);
     _prefs->multi_acks = constrain(_prefs->multi_acks, 0, 1);
+    _prefs->adc_multiplier = constrain(_prefs->adc_multiplier, 0.0f, 10.0f);
 
     // sanitise bad bridge pref values
     _prefs->bridge_enabled = constrain(_prefs->bridge_enabled, 0, 1);
@@ -149,8 +151,9 @@ void CommonCLI::savePrefs(FILESYSTEM* fs) {
     file.write((uint8_t *)&_prefs->gps_interval, sizeof(_prefs->gps_interval));                     // 157
     file.write((uint8_t *)&_prefs->advert_loc_policy, sizeof(_prefs->advert_loc_policy));           // 161
     file.write((uint8_t *)&_prefs->discovery_mod_timestamp, sizeof(_prefs->discovery_mod_timestamp)); // 162
-    file.write((uint8_t *)&_prefs->trusted_nodes, sizeof(_prefs->trusted_nodes));                     // 166
-    // 262
+    file.write((uint8_t *)&_prefs->adc_multiplier, sizeof(_prefs->adc_multiplier));                 // 166
+    file.write((uint8_t *)&_prefs->trusted_nodes, sizeof(_prefs->trusted_nodes));                   // 170
+    // 266
 
     file.close();
   }
@@ -230,12 +233,12 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
       strcpy(tmp, &command[10]);
       const char *parts[5];
       int num = mesh::Utils::parseTextParts(tmp, parts, 5);
-      float freq  = num > 0 ? atof(parts[0]) : 0.0f;
-      float bw    = num > 1 ? atof(parts[1]) : 0.0f;
+      float freq  = num > 0 ? strtof(parts[0], nullptr) : 0.0f;
+      float bw    = num > 1 ? strtof(parts[1], nullptr) : 0.0f;
       uint8_t sf  = num > 2 ? atoi(parts[2]) : 0;
       uint8_t cr  = num > 3 ? atoi(parts[3]) : 0;
       int temp_timeout_mins  = num > 4 ? atoi(parts[4]) : 0;
-      if (freq >= 300.0f && freq <= 2500.0f && sf >= 7 && sf <= 12 && cr >= 5 && cr <= 8 && bw >= 7.0f && bw <= 500.0f && temp_timeout_mins > 0) {
+      if (freq >= 300.0f && freq <= 2500.0f && sf >= 5 && sf <= 12 && cr >= 5 && cr <= 8 && bw >= 7.0f && bw <= 500.0f && temp_timeout_mins > 0) {
         _callbacks->applyTempRadioParams(freq, bw, sf, cr, temp_timeout_mins);
         sprintf(reply, "OK - temp params for %d mins", temp_timeout_mins);
       } else {
@@ -286,7 +289,7 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
       } else if (memcmp(config, "radio", 5) == 0) {
         char freq[16], bw[16];
         strcpy(freq, StrHelper::ftoa(_prefs->freq));
-        strcpy(bw, StrHelper::ftoa(_prefs->bw));
+        strcpy(bw, StrHelper::ftoa3(_prefs->bw));
         sprintf(reply, "> %s,%s,%d,%d", freq, bw, (uint32_t)_prefs->sf, (uint32_t)_prefs->cr);
       } else if (memcmp(config, "rxdelay", 7) == 0) {
         sprintf(reply, "> %s", StrHelper::ftoa(_prefs->rx_delay_base));
@@ -333,13 +336,20 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
       } else if (memcmp(config, "bridge.secret", 13) == 0) {
         sprintf(reply, "> %s", _prefs->bridge_secret);
 #endif
-    } else if (memcmp(config, "trusted ", 8) == 0) { // from serial command line only
-      int i = 0;
-      if (config[8] == '2') i = 1;
-      if (config[8] == '3') i = 2;
+      } else if (memcmp(config, "adc.multiplier", 14) == 0) {
+        float adc_mult = _board->getAdcMultiplier();
+        if (adc_mult == 0.0f) {
+          strcpy(reply, "Error: unsupported by this board");
+        } else {
+          sprintf(reply, "> %.3f", adc_mult);
+        }
+      } else if (memcmp(config, "trusted ", 8) == 0) { // from serial command line only
+        int i = 0;
+        if (config[8] == '2') i = 1;
+        if (config[8] == '3') i = 2;
 
-      mesh::Utils::toHex(tmp, _prefs->trusted_nodes[i], PUB_KEY_SIZE);
-      sprintf(reply, "> %d:%s", i+1, tmp);																				 									  
+        mesh::Utils::toHex(tmp, _prefs->trusted_nodes[i], PUB_KEY_SIZE);
+        sprintf(reply, "> %d:%s", i+1, tmp);																				 									  
       } else {
         sprintf(reply, "??: %s", config);
       }
@@ -416,11 +426,11 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
         strcpy(tmp, &config[6]);
         const char *parts[4];
         int num = mesh::Utils::parseTextParts(tmp, parts, 4);
-        float freq  = num > 0 ? atof(parts[0]) : 0.0f;
-        float bw    = num > 1 ? atof(parts[1]) : 0.0f;
+        float freq  = num > 0 ? strtof(parts[0], nullptr) : 0.0f;
+        float bw    = num > 1 ? strtof(parts[1], nullptr) : 0.0f;
         uint8_t sf  = num > 2 ? atoi(parts[2]) : 0;
         uint8_t cr  = num > 3 ? atoi(parts[3]) : 0;
-        if (freq >= 300.0f && freq <= 2500.0f && sf >= 7 && sf <= 12 && cr >= 5 && cr <= 8 && bw >= 7.0f && bw <= 500.0f) {
+        if (freq >= 300.0f && freq <= 2500.0f && sf >= 5 && sf <= 12 && cr >= 5 && cr <= 8 && bw >= 7.0f && bw <= 500.0f) {
           _prefs->sf = sf;
           _prefs->cr = cr;
           _prefs->freq = freq;
@@ -532,29 +542,42 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
         savePrefs();
         strcpy(reply, "OK");
 #endif
-      } else if (memcmp(config, "trusted ", 8) == 0) { 
-      do {// save trusted nodes public key (for ota)
-        int i = -1;
-        if (config[8] == '1') i = 0;
-        if (config[8] == '2') i = 1;
-        if (config[8] == '3') i = 2;
-        if (i == -1 || config[9] != ':') {
-          strcpy(reply, "Format error. Use 'set trusted N:PublicID'");
-          break;
-        }
-        uint8_t pub_key[PUB_KEY_SIZE];
-        bool success = mesh::Utils::fromHex(pub_key, PUB_KEY_SIZE, &config[10]);
-        if (success) {
-          memcpy(_prefs->trusted_nodes[i], pub_key, PUB_KEY_SIZE);
-          strcpy(reply, "OK");
+      } else if (memcmp(config, "adc.multiplier ", 15) == 0) {
+        _prefs->adc_multiplier = atof(&config[15]);
+        if (_board->setAdcMultiplier(_prefs->adc_multiplier)) {
+          savePrefs();
+          if (_prefs->adc_multiplier == 0.0f) {
+            strcpy(reply, "OK - using default board multiplier");
+          } else {
+            sprintf(reply, "OK - multiplier set to %.3f", _prefs->adc_multiplier);
+          }
         } else {
-          strcpy(reply, "Error, invalid key");
-        }
-        break;
-      } while (0);
-    } else {
-      sprintf(reply, "unknown config: %s", config);
-    }
+          _prefs->adc_multiplier = 0.0f;
+          strcpy(reply, "Error: unsupported by this board");
+        };
+      } else if (memcmp(config, "trusted ", 8) == 0) { 
+        do {// save trusted nodes public key (for ota)
+          int i = -1;
+          if (config[8] == '1') i = 0;
+          if (config[8] == '2') i = 1;
+          if (config[8] == '3') i = 2;
+          if (i == -1 || config[9] != ':') {
+            strcpy(reply, "Format error. Use 'set trusted N:PublicID'");
+            break;
+          }
+          uint8_t pub_key[PUB_KEY_SIZE];
+          bool success = mesh::Utils::fromHex(pub_key, PUB_KEY_SIZE, &config[10]);
+          if (success) {
+            memcpy(_prefs->trusted_nodes[i], pub_key, PUB_KEY_SIZE);
+            strcpy(reply, "OK");
+          } else {
+            strcpy(reply, "Error, invalid key");
+          }
+          break;
+        } while (0);
+      } else {
+        sprintf(reply, "unknown config: %s", config);
+      }
     } else if (sender_timestamp == 0 && strcmp(command, "erase") == 0) {
       bool s = _callbacks->formatFileSystem();
       sprintf(reply, "File system erase: %s", s ? "OK" : "Err");
