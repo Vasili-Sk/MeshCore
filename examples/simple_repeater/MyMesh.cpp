@@ -48,6 +48,7 @@
 #define REQ_TYPE_GET_TELEMETRY_DATA 0x03
 #define REQ_TYPE_GET_ACCESS_LIST    0x05
 #define REQ_TYPE_GET_NEIGHBOURS     0x06
+#define REQ_TYPE_GET_VER            0x07
 
 #define RESP_SERVER_LOGIN_OK        0 // response to ANON_REQ
 
@@ -285,6 +286,17 @@ int MyMesh::handleRequest(ClientInfo *sender, uint32_t sender_timestamp, uint8_t
 
       return reply_offset;
     }
+  }
+  if (payload[0] == REQ_TYPE_GET_VER) {
+    const char *ver = getFirmwareVer();
+    const char *date = getBuildDate();
+    int verlen = strlen(ver);
+    int datelen = strlen(date);
+    memcpy(&reply_data[4], &ver, verlen);
+    reply_data[4 + verlen] = ' ';
+    memcpy(&reply_data[4 + verlen + 1], &date, datelen + 1); // null terminated
+
+    return 4 + verlen + 1 + datelen + 1; //  reply_len
   }
   return 0; // unknown command
 }

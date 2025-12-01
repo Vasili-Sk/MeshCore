@@ -70,7 +70,8 @@ void CommonCLI::loadPrefsInt(FILESYSTEM* fs, const char* filename) {
     file.read((uint8_t *)&_prefs->gps_interval, sizeof(_prefs->gps_interval));                     // 157
     file.read((uint8_t *)&_prefs->advert_loc_policy, sizeof (_prefs->advert_loc_policy));          // 161
     file.read((uint8_t *)&_prefs->discovery_mod_timestamp, sizeof(_prefs->discovery_mod_timestamp)); // 162
-    // 166
+    file.read((uint8_t *)&_prefs->trusted_nodes, sizeof(_prefs->trusted_nodes));                     // 166
+    // 262
 
     // sanitise bad pref values
     _prefs->rx_delay_base = constrain(_prefs->rx_delay_base, 0, 20.0f);
@@ -148,7 +149,8 @@ void CommonCLI::savePrefs(FILESYSTEM* fs) {
     file.write((uint8_t *)&_prefs->gps_interval, sizeof(_prefs->gps_interval));                     // 157
     file.write((uint8_t *)&_prefs->advert_loc_policy, sizeof(_prefs->advert_loc_policy));           // 161
     file.write((uint8_t *)&_prefs->discovery_mod_timestamp, sizeof(_prefs->discovery_mod_timestamp)); // 162
-    // 166
+    file.write((uint8_t *)&_prefs->trusted_nodes, sizeof(_prefs->trusted_nodes));                     // 166
+    // 262
 
     file.close();
   }
@@ -331,6 +333,13 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
       } else if (memcmp(config, "bridge.secret", 13) == 0) {
         sprintf(reply, "> %s", _prefs->bridge_secret);
 #endif
+    } else if (memcmp(config, "trusted ", 8) == 0) { // from serial command line only
+      int i = 0;
+      if (config[8] == '2') i = 1;
+      if (config[8] == '3') i = 2;
+
+      mesh::Utils::toHex(tmp, _prefs->trusted_nodes[i], PUB_KEY_SIZE);
+      sprintf(reply, "> %d:%s", i+1, tmp);																				 									  
       } else {
         sprintf(reply, "??: %s", config);
       }
@@ -523,9 +532,29 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
         savePrefs();
         strcpy(reply, "OK");
 #endif
-      } else {
-        sprintf(reply, "unknown config: %s", config);
-      }
+      } else if (memcmp(config, "trusted ", 8) == 0) { 
+      do {// save trusted nodes public key (for ota)
+        int i = -1;
+        if (config[8] == '1') i = 0;
+        if (config[8] == '2') i = 1;
+        if (config[8] == '3') i = 2;
+        if (i == -1 || config[9] != ':') {
+          strcpy(reply, "Format error. Use 'set trusted N:PublicID'");
+          break;
+        }
+        uint8_t pub_key[PUB_KEY_SIZE];
+        bool success = mesh::Utils::fromHex(pub_key, PUB_KEY_SIZE, &config[10]);
+        if (success) {
+          memcpy(_prefs->trusted_nodes[i], pub_key, PUB_KEY_SIZE);
+          strcpy(reply, "OK");
+        } else {
+          strcpy(reply, "Error, invalid key");
+        }
+        break;
+      } while (0);
+    } else {
+      sprintf(reply, "unknown config: %s", config);
+    }
     } else if (sender_timestamp == 0 && strcmp(command, "erase") == 0) {
       bool s = _callbacks->formatFileSystem();
       sprintf(reply, "File system erase: %s", s ? "OK" : "Err");
