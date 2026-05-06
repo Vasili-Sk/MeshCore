@@ -17,7 +17,7 @@
 class SolarNodeL431Board : public STM32Board {
 public:
     void begin() override;
-    void sleep() override;
+    void sleep(int);
     const char* getManufacturerName() const override;
     uint16_t getBattMilliVolts() override;
     void setGpio(uint32_t values) override;

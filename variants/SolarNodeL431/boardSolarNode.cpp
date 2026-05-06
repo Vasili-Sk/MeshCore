@@ -94,7 +94,7 @@ uint32_t SolarNodeL431Board::getGpio() {
   return digitalRead(USER_BTN);
 }
 
-void SolarNodeL431Board::sleep(){
+void SolarNodeL431Board::sleep(int time){
   __WFI();
 }
 
