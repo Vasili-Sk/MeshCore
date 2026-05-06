@@ -212,14 +212,13 @@ void MyMesh::logRx(mesh::Packet *pkt, int len, float score) {
   if (_logging) {
     File f = openAppend(PACKET_LOG_FILE);
     if (f) {
-      uint8_t type = pkt->getPayloadType();
       f.print(getLogDateTime());
       f.printf(": RX, len=%d (type=%d, route=%s, payload_len=%d) SNR=%d RSSI=%d score=%d", len,
-               type, pkt->isRouteDirect() ? "D" : "F", pkt->payload_len,
+               pkt->getPayloadType(), pkt->isRouteDirect() ? "D" : "F", pkt->payload_len,
                (int)_radio->getLastSNR(), (int)_radio->getLastRSSI(), (int)(score * 1000));
 
-      if (type == PAYLOAD_TYPE_PATH || type == PAYLOAD_TYPE_REQ || type == PAYLOAD_TYPE_RESPONSE ||
-          type == PAYLOAD_TYPE_TXT_MSG || type == PAYLOAD_TYPE_DATA) {
+      if (pkt->getPayloadType() == PAYLOAD_TYPE_PATH || pkt->getPayloadType() == PAYLOAD_TYPE_REQ ||
+          pkt->getPayloadType() == PAYLOAD_TYPE_RESPONSE || pkt->getPayloadType() == PAYLOAD_TYPE_TXT_MSG) {
         f.printf(" [%02X -> %02X]\n", (uint32_t)pkt->payload[1], (uint32_t)pkt->payload[0]);
       } else {
         f.printf("\n");
@@ -232,13 +231,12 @@ void MyMesh::logTx(mesh::Packet *pkt, int len) {
   if (_logging) {
     File f = openAppend(PACKET_LOG_FILE);
     if (f) {
-      uint8_t type = pkt->getPayloadType();
       f.print(getLogDateTime());
-      f.printf(": TX, len=%d (type=%d, route=%s, payload_len=%d)", len, type,
+      f.printf(": TX, len=%d (type=%d, route=%s, payload_len=%d)", len, pkt->getPayloadType(),
                pkt->isRouteDirect() ? "D" : "F", pkt->payload_len);
 
-      if (type == PAYLOAD_TYPE_PATH || type == PAYLOAD_TYPE_REQ || type == PAYLOAD_TYPE_RESPONSE ||
-          type == PAYLOAD_TYPE_TXT_MSG || type == PAYLOAD_TYPE_DATA) {
+      if (pkt->getPayloadType() == PAYLOAD_TYPE_PATH || pkt->getPayloadType() == PAYLOAD_TYPE_REQ ||
+          pkt->getPayloadType() == PAYLOAD_TYPE_RESPONSE || pkt->getPayloadType() == PAYLOAD_TYPE_TXT_MSG) {
         f.printf(" [%02X -> %02X]\n", (uint32_t)pkt->payload[1], (uint32_t)pkt->payload[0]);
       } else {
         f.printf("\n");
