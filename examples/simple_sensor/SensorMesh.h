@@ -22,6 +22,7 @@
 #include <helpers/CommonCLI.h>
 #include <helpers/StatsFormatHelper.h>
 #include <helpers/ClientACL.h>
+#include <helpers/RegionMap.h>
 #include <RTClib.h>
 #include <target.h>
 
@@ -33,11 +34,11 @@
 #define PERM_RECV_ALERTS_HI    (1 << 7)   // high priority alerts
 
 #ifndef FIRMWARE_BUILD_DATE
-  #define FIRMWARE_BUILD_DATE   "30 Nov 2025"
+  #define FIRMWARE_BUILD_DATE   "20 Mar 2026"
 #endif
 
 #ifndef FIRMWARE_VERSION
-  #define FIRMWARE_VERSION   "v1.11.0"
+  #define FIRMWARE_VERSION   "v1.14.1"
 #endif
 
 #define FIRMWARE_ROLE "sensor"
@@ -60,13 +61,13 @@ public:
   NodePrefs* getNodePrefs() { return &_prefs; }
   void savePrefs() override { _cli.savePrefs(_fs); }
   bool formatFileSystem() override;
-  void sendSelfAdvertisement(int delay_millis) override;
+  void sendSelfAdvertisement(int delay_millis, bool flood) override;
   void updateAdvertTimer() override;
   void updateFloodAdvertTimer() override;
   void setLoggingOn(bool enable) override {  }
   void eraseLogFile() override { }
   void dumpLogFile() override { }
-  void setTxPower(uint8_t power_dbm) override;
+  void setTxPower(int8_t power_dbm) override;
   void formatNeighborsReply(char *reply) override {
     strcpy(reply, "not supported");
   }
@@ -128,16 +129,19 @@ protected:
   void onControlDataRecv(mesh::Packet* packet) override;
   void onAckRecv(mesh::Packet* packet, uint32_t ack_crc) override;
   virtual bool handleIncomingMsg(ClientInfo& from, uint32_t timestamp, uint8_t* data, uint8_t flags, size_t len);
-  void sendAckTo(const ClientInfo& dest, uint32_t ack_hash);
+  void sendAckTo(const ClientInfo& dest, uint32_t ack_hash, uint8_t path_hash_size=1);
 private:
   FILESYSTEM* _fs;
   unsigned long next_local_advert, next_flood_advert;
   NodePrefs _prefs;
+  ClientACL  acl;
   CommonCLI _cli;
   uint8_t reply_data[MAX_PACKET_PAYLOAD];
-  ClientACL  acl;
   unsigned long dirty_contacts_expiry;
   CayenneLPP telemetry;
+  TransportKeyStore key_store;
+  RegionMap region_map;
+  TransportKey default_scope;
   uint32_t last_read_time;
   int matching_peer_indexes[MAX_SEARCH_RESULTS];
   int num_alert_tasks;
