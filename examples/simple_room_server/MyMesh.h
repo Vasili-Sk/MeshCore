@@ -9,6 +9,8 @@
   #include <LittleFS.h>
 #elif defined(ESP32)
   #include <SPIFFS.h>
+#elif defined(W25Q_FS)
+  #include <helpers/w25qFS/w25q_fs.h>
 #endif
 
 #include <helpers/ArduinoHelpers.h>

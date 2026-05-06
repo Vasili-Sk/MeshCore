@@ -72,7 +72,9 @@ void DataStore::begin() {
     #include <CustomLFS_QSPIFlash.h>
   #elif defined(EXTRAFS)
     #include <CustomLFS.h>
-  #else 
+  #elif defined(W25Q_FS)
+    #include <helpers/w25qFS/w25q_fs.h>
+  #else
     #include <InternalFileSystem.h>
   #endif
 #endif

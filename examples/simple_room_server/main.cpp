@@ -51,6 +51,10 @@ void setup() {
   SPIFFS.begin(true);
   fs = &SPIFFS;
   IdentityStore store(SPIFFS, "/identity");
+#elif defined(W25Q_FS)
+  ExternalFS.begin();
+  fs = &ExternalFS;
+  IdentityStore store(ExternalFS, "");
 #else
   #error "need to define filesystem"
 #endif
@@ -111,4 +115,5 @@ void loop() {
   ui_task.loop();
 #endif
   rtc_clock.tick();
+  board.sleep(); // To sleep. 
 }

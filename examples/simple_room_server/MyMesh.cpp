@@ -120,7 +120,7 @@ mesh::Packet *MyMesh::createSelfAdvert() {
 }
 
 File MyMesh::openAppend(const char *fname) {
-#if defined(NRF52_PLATFORM)
+#if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
   return _fs->open(fname, FILE_O_WRITE);
 #elif defined(RP2040_PLATFORM)
   return _fs->open(fname, "a");
@@ -671,6 +671,8 @@ bool MyMesh::formatFileSystem() {
   return LittleFS.format();
 #elif defined(ESP32)
   return SPIFFS.format();
+#elif defined(W25Q_FS)
+  return ExternalFS.format();
 #else
 #error "need to implement file system erase"
   return false;

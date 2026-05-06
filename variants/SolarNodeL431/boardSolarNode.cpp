@@ -46,11 +46,6 @@ void initVariant() {
   //setupClock26MHz();
 }
 
-void loraISR()
-{
-
-}
-
 void boardGPIOinit() {
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
@@ -58,6 +53,7 @@ void boardGPIOinit() {
   // reset radio for low power
   digitalWrite(P_LORA_RESET, 0);
   pinMode(P_LORA_RESET, OUTPUT);
+  pinMode(P_LORA_DIO_1, INPUT);
 
   digitalWrite(LED_BUILTIN, 0);
   pinMode(LED_BUILTIN, OUTPUT);
@@ -76,8 +72,8 @@ void boardGPIOinit() {
   pinMode(ADC_IBAT, INPUT_ANALOG);
   pinMode(DAC_OUT, INPUT_ANALOG);
 
-  attachInterrupt(digitalPinToInterrupt(P_LORA_DIO_1), loraISR, FALLING);
-  //attachInterrupt(digitalPinToInterrupt(P_LORA2_DIO_1), loraISR, FALLING);
+  //attachInterrupt(digitalPinToInterrupt(P_LORA_DIO_1), loraISR, RISING);
+
 }
 
 const char *SolarNodeL431Board::getManufacturerName() const {
